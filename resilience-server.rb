@@ -32,6 +32,7 @@ class App < Sinatra::Base
 
   # GET Service List
   # For now, we don't need to support multiple jurisdictions
+  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/services
   get '/services' do
     content_type 'application/json', :charset => 'utf-8'
     # Construct the list of services
