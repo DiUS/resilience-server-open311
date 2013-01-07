@@ -12,5 +12,7 @@ Notes about this implementation:
 
 Next steps:
 * Run the Open311 validation tests against the implementation to confirm compliance.
+* Add more stringent parameter checking.
 * Add a PUT method so a service request's details or status can be changed.
+* Implement the service discovery mechanism. See http://wiki.open311.org/Service_Discovery
 * Add XML support.

@@ -32,17 +32,26 @@ class App < Sinatra::Base
 
   # GET Service List
   # For now, we don't need to support multiple jurisdictions
-  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/services
-  get '/services' do
+  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/services.json
+  get '/services.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     # Construct the list of services
-    # render the result as JSON
-    response.body = @@service_defs.to_json
+    errors = Array.new
+    if (params[:format] != "json")
+      errors << {"code" => 400, "description" => 'format not supported'}
+    end
+    if (errors.count == 0)
+      response.body = @@service_defs.to_json
+    else
+      # render the errors as JSON, using the first error code as the HTTP error code
+      status errors[0]["code"]
+      response.body = errors.to_json
+    end
   end
 
   # GET Service Definition
   # Not implemented - no services have metadata for the moment
-  get '/services/:service_code' do
+  get '/services/:service_code.?:format?' do
     status 400
     errors = Array.new
     errors << {"code" => 400, "description" => 'method not supported'}
@@ -50,14 +59,17 @@ class App < Sinatra::Base
   end
 
   # POST Service Request
-  # curl -i -H "Accept: application/json" -X POST -d "service_code=001&lat=37.76524078&long=-122.4212043&address_string=1234+5th+street&email=smit333%40sfgov.edu&device_id=tt222111&account_id=123456&first_name=john&last_name=smith&phone=111111111&description=A+large+sinkhole+is+destroying+the+street&media_url=http%3A%2F%2Ffarm3.static.flickr.com%2F2002%2F2212426634_5ed477a060.jpg" http://localhost:4567/requests
-  post '/requests' do
+  # curl -i -H "Accept: application/json" -X POST -d "service_code=001&lat=37.76524078&long=-122.4212043&address_string=1234+5th+street&email=smit333%40sfgov.edu&device_id=tt222111&account_id=123456&first_name=john&last_name=smith&phone=111111111&description=A+large+sinkhole+is+destroying+the+street&media_url=http%3A%2F%2Ffarm3.static.flickr.com%2F2002%2F2212426634_5ed477a060.jpg" http://localhost:4567/requests.json
+  post '/requests.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     # check for mandatory parameters...
     # jurisdiction_id is not required for this implementation
     # attribute is not required for these services
     # lat/long are required for this implementation
     errors = Array.new
+    if (params[:format] != "json")
+      errors << {"code" => 400, "description" => 'format not supported'}
+    end
     if (params["service_code"] == nil)
       errors << {"code" => 400, "description" => 'service_code not provided'}
     elsif (params["service_code"].to_i < 1) || (params["service_code"].to_i > 12)  # need to do a more elaborate check
@@ -96,7 +108,7 @@ class App < Sinatra::Base
   
   # GET service_request_id from a token
   # Not implemented - tokens are not used in this implementation
-  get '/tokens' do
+  get '/tokens.?:format?' do
     status 400
     errors = Array.new
     errors << {"code" => 400, "description" => 'method not supported'}
@@ -104,15 +116,17 @@ class App < Sinatra::Base
   end
 
   # GET Service Requests
-  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/requests?service_request_id=a25a8ab9-75ce-4f25-bfd8-158a0da70fe9
-  # curl -i -H "Accept: application/json" -X GET -d "service_code=001" http://localhost:4567/requests
-  # curl -i -H "Accept: application/json" -X GET -d "status=open" http://localhost:4567/requests
-  # curl -i -H "Accept: application/json" -X GET -d "start_date=2012-12-01T00:00:00Z&end_date=2013-01-01T00:00:00Z" http://localhost:4567/requests
-  get '/requests' do
+  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/requests.json?service_request_id=a25a8ab9-75ce-4f25-bfd8-158a0da70fe9
+  # curl -i -H "Accept: application/json" -X GET -d "service_code=001" http://localhost:4567/requests.json
+  # curl -i -H "Accept: application/json" -X GET -d "status=open" http://localhost:4567/requests.json
+  # curl -i -H "Accept: application/json" -X GET -d "start_date=2012-12-01T00:00:00Z&end_date=2013-01-01T00:00:00Z" http://localhost:4567/requests.json
+  get '/requests.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
     errors = Array.new
-    if (params.empty?)
+    if (params[:format] != "json")
+      errors << {"code" => 400, "description" => 'format not supported'}
+    elsif (params.count == 1)
       # Return everything. Need to implement the limit defined in the spec.
       db = MongoClient.new('localhost', 27017)["resilience"]
       coll = db.collection("service-requests")
@@ -201,11 +215,15 @@ class App < Sinatra::Base
   end
 
   # GET Service Request
-  get '/requests/:service_request_id' do
+  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/requests.json/395e130d-909b-4236-a94c-a91c4e13b323
+  get '/requests.?:format?/:service_request_id' do
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
     errors = Array.new
-    if (params[:service_request_id] != nil)
+    p params[:format]
+    if (params[:format] != "json")
+      errors << {"code" => 400, "description" => 'format not supported'}
+    elsif (params[:service_request_id] != nil)
       db = MongoClient.new('localhost', 27017)["resilience"]
       coll = db.collection("service-requests")
       doc = coll.find_one({"service_request_id" => params[:service_request_id]})
