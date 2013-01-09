@@ -48,6 +48,17 @@ class App < Sinatra::Base
       response.body = errors.to_json
     end
   end
+  
+  def isValidServiceCode?(service_code)
+    found = false
+    @@service_defs.each do |d|
+      if (service_code == d["service_code"])
+        found = true
+        break
+      end
+    end
+    return found
+  end
 
   # GET Service Definition
   # Not implemented - no services have metadata for the moment
@@ -72,7 +83,7 @@ class App < Sinatra::Base
     end
     if (params["service_code"] == nil)
       errors << {"code" => 400, "description" => 'service_code not provided'}
-    elsif (params["service_code"].to_i < 1) || (params["service_code"].to_i > 12)  # need to do a more elaborate check
+    elsif (!isValidServiceCode?(params["service_code"]))
       errors << {"code" => 404, "description" => 'service_code not found'}
     end
     if (params["lat"] == nil)
@@ -150,8 +161,12 @@ class App < Sinatra::Base
       search_criteria = Hash.new
       # Handle service_code
       if (params["service_code"] != nil)
-        service_codes = params["service_code"].split(",")
-        search_criteria["service_code"] = {"$in" => service_codes}
+        if (isValidServiceCode?(params["service_code"]))
+          service_codes = params["service_code"].split(",")
+          search_criteria["service_code"] = {"$in" => service_codes}
+        else
+          errors << {"code" => 404, "description" => "service_code not found: #{params["service_code"]}"}
+        end
       end
       # Handle date ranges
       # We could get:
@@ -215,15 +230,12 @@ class App < Sinatra::Base
   end
 
   # GET Service Request
-  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/requests.json/395e130d-909b-4236-a94c-a91c4e13b323
-  get '/requests.?:format?/:service_request_id' do
+  # curl -i -H "Accept: application/json" -X GET http://localhost:4567/requests/395e130d-909b-4236-a94c-a91c4e13b323.json
+  get '/requests/:service_request_id.json' do
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
     errors = Array.new
-    p params[:format]
-    if (params[:format] != "json")
-      errors << {"code" => 400, "description" => 'format not supported'}
-    elsif (params[:service_request_id] != nil)
+    if (params[:service_request_id] != nil)
       db = MongoClient.new('localhost', 27017)["resilience"]
       coll = db.collection("service-requests")
       doc = coll.find_one({"service_request_id" => params[:service_request_id]})
