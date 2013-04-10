@@ -6,6 +6,7 @@ require 'time'
 require 'date'
 require 'benchmark'
 require 'securerandom'
+require 'geocoder'
 
 include Mongo
 
@@ -102,6 +103,7 @@ class App < Sinatra::Base
       # add the service request to the database
       db = MongoClient.new('localhost', 27017)["resilience"]
       coll = db.collection("service-requests")
+      service_request["address"] = Geocoder.address(params["lat"]+","+params["long"])
       service_request["service_request_id"] = SecureRandom.uuid
       service_request["status"] = "open"
       service_request["requested_datetime"] = Time.now.utc
