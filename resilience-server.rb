@@ -256,14 +256,14 @@ class App < Sinatra::Base
     end
   end
 
-  # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!"}' http://localhost:9292/feedback.json
-  post '/feedback' do
+  # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!", "email": "somedude@here.com"}' http://localhost:9292/feedback.json
+  post '/feedback.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     feedback = JSON.parse(request.body.read)
     db = MongoClient.new('localhost', 27017)["resilience"]
     coll = db.collection("feedback")
     if feedback['comment']
-      id = coll.insert({ comment: feedback['comment'] })
+      id = coll.insert({ comment: feedback['comment'], email:feedback['email'], agent:request.user_agent })
       status 201
     else
       status 400
