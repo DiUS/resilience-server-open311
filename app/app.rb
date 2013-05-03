@@ -129,7 +129,7 @@ module Resilience
 
     # POST Service Request
     # curl -i -H "Accept: application/json" -X POST -d "service_code=001&lat=37.76524078&long=-122.4212043&address_string=1234+5th+street&email=smit333%40sfgov.edu&device_id=tt222111&account_id=123456&first_name=john&last_name=smith&phone=111111111&description=A+large+sinkhole+is+destroying+the+street&media_url=http%3A%2F%2Ffarm3.static.flickr.com%2F2002%2F2212426634_5ed477a060.jpg" http://localhost:4567/requests.json
-    post '/requests.:format' do
+    post '/requests.:format', :csrf_protection => false do
       content_type 'application/json', :charset => 'utf-8'
       # check for mandatory parameters...
       # jurisdiction_id is not required for this implementation
@@ -314,7 +314,7 @@ module Resilience
     end
 
     # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!", "email": "somedude@here.com"}' http://localhost:9292/feedback.json
-    post '/feedback.:format' do
+    post '/feedback.:format', :csrf_protection => false  do
       content_type 'application/json', :charset => 'utf-8'
       feedback = JSON.parse(request.body.read)
       db = MongoClient.new('localhost', 27017)[database_name]
