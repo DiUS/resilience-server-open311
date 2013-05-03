@@ -17,6 +17,10 @@ gem 'rake'
 gem 'bcrypt-ruby', :require => 'bcrypt'
 gem 'slim'
 gem 'mongoid', '~>3.0.0'
+gem 'mongo', ">=1.8.1"
+gem 'bson_ext'
+gem 'json'
+gem 'geocoder'
 
 # Test requirements
 gem 'rspec', :group => 'test'
