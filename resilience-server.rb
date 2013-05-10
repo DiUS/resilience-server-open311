@@ -12,11 +12,11 @@ include Mongo
 
 # This is an implementation of the Open311 GeoReport v2 specification. See http://wiki.open311.org/GeoReport_v2.
 # We are only supporting JSON responses for the moment.
-# 
+#
 # Start with rackup -p 4567
 # Uses the config.ru file
 class App < Sinatra::Base
-  
+
   @@service_defs = Array.new
   @@service_defs << {"service_code" => "001", "service_name" => "Road Blockage", "description" => "A road has been blocked.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
   @@service_defs << {"service_code" => "002", "service_name" => "Dwelling Damage", "description" => "A dwelling has been damaged.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
@@ -49,7 +49,7 @@ class App < Sinatra::Base
       response.body = errors.to_json
     end
   end
-  
+
   def isValidServiceCode?(service_code)
     found = false
     @@service_defs.each do |d|
@@ -121,7 +121,7 @@ class App < Sinatra::Base
       response.body = errors.to_json
     end
   end
-  
+
   # GET service_request_id from a token
   # Not implemented - tokens are not used in this implementation
   get '/tokens.?:format?' do
@@ -232,7 +232,7 @@ class App < Sinatra::Base
       response.body = errors.to_json
     end
   end
-  
+
   def format_document(doc)
     service_request = doc.select {|k,v| ["service_request_id", "status", "status_notes", "service_code", "description", "requested_datetime", "updated_datetime", "address", "address_id", "zipcode", "lat", "long", "media_url"].include?(k) }
     # look up the service name for the service code
@@ -267,4 +267,17 @@ class App < Sinatra::Base
     end
   end
 
+  # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!", "email": "somedude@here.com"}' http://localhost:9292/feedback.json
+  post '/feedback.?:format?' do
+    content_type 'application/json', :charset => 'utf-8'
+    feedback = JSON.parse(request.body.read)
+    db = MongoClient.new('localhost', 27017)["resilience"]
+    coll = db.collection("feedback")
+    if feedback['comment']
+      id = coll.insert({ comment: feedback['comment'], email:feedback['email'], agent:request.user_agent })
+      status 201
+    else
+      status 400
+    end
+  end
 end
