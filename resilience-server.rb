@@ -107,7 +107,10 @@ class App < Sinatra::Base
       service_request["service_request_id"] = SecureRandom.uuid
       service_request["status"] = "open"
       service_request["requested_datetime"] = Time.now.utc
+      service_request["location"] = {"longitude" => service_request["long"].to_f, "latitude" => service_request["lat"].to_f }
       id = coll.insert(service_request)
+      # make sure we have an index set up
+      coll.ensure_index([["location", Mongo::GEO2D]])
       # render the response
       r = Array.new
       r << {"service_request_id" => service_request["service_request_id"]}
@@ -133,20 +136,20 @@ class App < Sinatra::Base
   # curl -i -H "Accept: application/json" -X GET -d "service_code=001" http://localhost:4567/requests.json
   # curl -i -H "Accept: application/json" -X GET -d "status=open" http://localhost:4567/requests.json
   # curl -i -H "Accept: application/json" -X GET -d "start_date=2012-12-01T00:00:00Z&end_date=2013-01-01T00:00:00Z" http://localhost:4567/requests.json
+  # curl -i -H "Accept: application/json" -X GET -d "lat=37.76524078&long=-122.4212043&radius=50" http://localhost:4567/requests.json
   get '/requests.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
     errors = Array.new
     if (params[:format] != "json")
       errors << {"code" => 400, "description" => 'format not supported'}
-    elsif (params.count == 1)
-      # Return everything. Need to implement the limit defined in the spec.
+    elsif (params.count == 1) # return everything
       db = MongoClient.new('localhost', 27017)["resilience"]
       coll = db.collection("service-requests")
       coll.find().each do |doc|
         results << format_document(doc)
       end
-    elsif (params["service_request_id"] != nil)
+    elsif (params["service_request_id"] != nil) # return a particular request ID
       # If service_request_id is provided (which can include a comma-separated list of ids), it overrides all other parameters
       service_request_ids = params["service_request_id"].split(",")
       service_request_ids.uniq.each do |id|
@@ -162,7 +165,7 @@ class App < Sinatra::Base
     else
       search_criteria = Hash.new
       # Handle service_code
-      if (params["service_code"] != nil)
+      if (params["service_code"] != nil) # filter by service code
         if (isValidServiceCode?(params["service_code"]))
           service_codes = params["service_code"].split(",")
           search_criteria["service_code"] = {"$in" => service_codes}
@@ -176,7 +179,7 @@ class App < Sinatra::Base
       #   nil, end_date - for the 90 days up to end_date (2)
       #   start_date, end_date - from start_date to end_date (3)
       # ... and error if the date span is greater than 90 days
-      if (params["start_date"] != nil) || (params["end_date"] != nil)
+      if (params["start_date"] != nil) || (params["end_date"] != nil) # filter by date
         if (params["start_date"] == nil)  # case (2)
           end_date = Time.parse(params["end_date"])
           start_date = (end_date.to_date - 89).to_time.utc
@@ -198,9 +201,17 @@ class App < Sinatra::Base
         end
       end
       # Handle status
-      if (params["status"] != nil)
+      if (params["status"] != nil) # filter by status
         statuses = params["status"].split(",")
         search_criteria["status"] = {"$in" => statuses}
+      end
+      # Handle location
+      if (params["lat"] != nil) && (params["long"] != nil) && (params["radius"] != nil) # filter by location
+        latitude = params["lat"].to_f
+        longitude = params["long"].to_f
+        location = [longitude, latitude]
+        radius = params["radius"].to_f
+        search_criteria["location"] = {"$within" => {"$centerSphere" => [location, (radius.fdiv(6371) )]}}
       end
       # Perform the search
       if (errors.count == 0)
