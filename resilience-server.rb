@@ -30,6 +30,8 @@ class App < Sinatra::Base
   @@service_defs << {"service_code" => "010", "service_name" => "Infrastructure Damage", "description" => "Public infrastructure has been damaged.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
   @@service_defs << {"service_code" => "011", "service_name" => "Contents Damage", "description" => "A building's contents have been damaged.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
   @@service_defs << {"service_code" => "012", "service_name" => "Hazard", "description" => "A situation that may cause property to be damaged or people to be injured.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Hazard/Risk"}
+  
+  @@PAGE_SIZE = 10
 
   # GET Service List
   # For now, we don't need to support multiple jurisdictions
@@ -137,6 +139,7 @@ class App < Sinatra::Base
   # curl -i -H "Accept: application/json" -X GET -d "status=open" http://localhost:4567/requests.json
   # curl -i -H "Accept: application/json" -X GET -d "start_date=2012-12-01T00:00:00Z&end_date=2013-01-01T00:00:00Z" http://localhost:4567/requests.json
   # curl -i -H "Accept: application/json" -X GET -d "lat=37.76524078&long=-122.4212043&radius=50" http://localhost:4567/requests.json
+  # curl -i -H "Accept: application/json" -X GET -d "page=2&lat=37.76524078&long=-122.4212043&radius=50" http://localhost:4567/requests.json
   get '/requests.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
@@ -220,6 +223,16 @@ class App < Sinatra::Base
         puts "criteria: #{search_criteria}"
         coll.find(search_criteria).each do |doc|
           results << format_document(doc)
+          # Handle page number by stripping out unwanted results
+          if (params["page"].to_i > 0)
+            page = params["page"].to_i
+            trimmed_results = results[(page-1)*@@PAGE_SIZE,@@PAGE_SIZE]
+            if trimmed_results == nil
+              results = []
+            else
+              results = trimmed_results
+            end
+          end
         end
       end
     end
