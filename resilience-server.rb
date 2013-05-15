@@ -214,7 +214,8 @@ class App < Sinatra::Base
         longitude = params["long"].to_f
         location = [longitude, latitude]
         radius = params["radius"].to_f
-        search_criteria["location"] = {"$within" => {"$centerSphere" => [location, (radius.fdiv(6371) )]}}
+        # Find items within the radius, sorted by proximity to the centre
+        search_criteria["location"] = {"$nearSphere" => location, "$maxDistance" => radius.fdiv(6369)}  # 1 km = 1/6369 radians
       end
       # Perform the search
       if (errors.count == 0)
