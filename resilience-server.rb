@@ -281,6 +281,37 @@ class App < Sinatra::Base
     end
   end
 
+  # PUT Service Request
+  # curl -i -H "Accept: application/json" -X PUT -d "status=open" http://localhost:4567/requests/395e130d-909b-4236-a94c-a91c4e13b323.json
+  # curl -i -H "Accept: application/json" -X PUT -d "status=closed" http://localhost:4567/requests/395e130d-909b-4236-a94c-a91c4e13b323.json
+  put '/requests/:service_request_id.json' do
+    content_type 'application/json', :charset => 'utf-8'
+    results = Array.new
+    errors = Array.new
+    if (params["status"] == "open") || (params["status"] == "closed")
+      status = params["status"]
+      # find the service request and update it
+      db = MongoClient.new('localhost', 27017)["resilience"]
+      coll = db.collection("service-requests")
+      doc = coll.find_one({"service_request_id" => params[:service_request_id]})
+      if (doc != nil)
+        coll.update({"service_request_id" => params[:service_request_id]}, {"$set" => {"status" => status}})
+        results << {"service_request_id" => params[:service_request_id]}
+      else
+        errors << {"code" => 404, "description" => "service_request_id not found: #{params[:service_request_id]}"}
+      end
+    else
+      errors << {"code" => 404, "description" => "invalid status code: #{params["status"]}"}
+    end
+    if (errors.count == 0)
+      response.body = results.to_json
+    else
+      # render the errors as JSON, using the first error code as the HTTP error code
+      status errors[0]["code"]
+      response.body = errors.to_json
+    end
+  end
+
   # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!", "email": "somedude@here.com"}' http://localhost:9292/feedback.json
   post '/feedback.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
