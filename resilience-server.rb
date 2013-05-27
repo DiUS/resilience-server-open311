@@ -103,7 +103,8 @@ class App < Sinatra::Base
       # make sure we only get valid keys in the optional parameters
       service_request = params.select {|k,v| ["service_code", "lat", "long", "address_string", "address_id", "email", "device_id", "account_id", "first_name", "last_name", "phone", "description", "media_url"].include?(k) }
       # add the service request to the database
-      db = MongoClient.new('localhost', 27017)["resilience"]
+      client = MongoClient.new('localhost', 27017)
+      db = client["resilience"]
       coll = db.collection("service-requests")
       service_request["address"] = Geocoder.address(params["lat"]+","+params["long"])
       service_request["service_request_id"] = SecureRandom.uuid
@@ -117,6 +118,7 @@ class App < Sinatra::Base
       r = Array.new
       r << {"service_request_id" => service_request["service_request_id"]}
       response.body = r.to_json
+      client.close
     else
       # render the errors as JSON, using the first error code as the HTTP error code
       status errors[0]["code"]
@@ -147,16 +149,19 @@ class App < Sinatra::Base
     if (params[:format] != "json")
       errors << {"code" => 400, "description" => 'format not supported'}
     elsif (params.count == 1) # return everything
-      db = MongoClient.new('localhost', 27017)["resilience"]
+      client = MongoClient.new('localhost', 27017)
+      db = client["resilience"]
       coll = db.collection("service-requests")
       coll.find().each do |doc|
         results << format_document(doc)
       end
+      client.close
     elsif (params["service_request_id"] != nil) # return a particular request ID
       # If service_request_id is provided (which can include a comma-separated list of ids), it overrides all other parameters
       service_request_ids = params["service_request_id"].split(",")
       service_request_ids.uniq.each do |id|
-        db = MongoClient.new('localhost', 27017)["resilience"]
+        client = MongoClient.new('localhost', 27017)
+        db = client["resilience"]
         coll = db.collection("service-requests")
         doc = coll.find_one({"service_request_id" => id})
         if (doc != nil)
@@ -164,6 +169,7 @@ class App < Sinatra::Base
         else
           errors << {"code" => 404, "description" => "service_request_id not found: #{id}"}
         end
+        client.close
       end
     else
       search_criteria = Hash.new
@@ -219,7 +225,8 @@ class App < Sinatra::Base
       end
       # Perform the search
       if (errors.count == 0)
-        db = MongoClient.new('localhost', 27017)["resilience"]
+        client = MongoClient.new('localhost', 27017)
+        db = client["resilience"]
         coll = db.collection("service-requests")
         puts "criteria: #{search_criteria}"
         coll.find(search_criteria).each do |doc|
@@ -235,6 +242,7 @@ class App < Sinatra::Base
             end
           end
         end
+        client.close
       end
     end
     # Render the response
@@ -263,7 +271,8 @@ class App < Sinatra::Base
     results = Array.new
     errors = Array.new
     if (params[:service_request_id] != nil)
-      db = MongoClient.new('localhost', 27017)["resilience"]
+      client = MongoClient.new('localhost', 27017)
+      db = client["resilience"]
       coll = db.collection("service-requests")
       doc = coll.find_one({"service_request_id" => params[:service_request_id]})
       if (doc != nil)
@@ -271,6 +280,7 @@ class App < Sinatra::Base
       else
         errors << {"code" => 404, "description" => "service_request_id not found: #{params[:service_request_id]}"}
       end
+      client.close
     end
     if (errors.count == 0)
       response.body = results.to_json
@@ -291,7 +301,8 @@ class App < Sinatra::Base
     if (params["status"] == "open") || (params["status"] == "closed")
       status = params["status"]
       # find the service request and update it
-      db = MongoClient.new('localhost', 27017)["resilience"]
+      client = MongoClient.new('localhost', 27017)
+      db = client["resilience"]
       coll = db.collection("service-requests")
       doc = coll.find_one({"service_request_id" => params[:service_request_id]})
       if (doc != nil)
@@ -300,6 +311,7 @@ class App < Sinatra::Base
       else
         errors << {"code" => 404, "description" => "service_request_id not found: #{params[:service_request_id]}"}
       end
+      client.close
     else
       errors << {"code" => 404, "description" => "invalid status code: #{params["status"]}"}
     end
@@ -316,7 +328,8 @@ class App < Sinatra::Base
   post '/feedback.?:format?' do
     content_type 'application/json', :charset => 'utf-8'
     feedback = JSON.parse(request.body.read)
-    db = MongoClient.new('localhost', 27017)["resilience"]
+    client = MongoClient.new('localhost', 27017)
+    db = client["resilience"]
     coll = db.collection("feedback")
     if feedback['comment']
       id = coll.insert({ comment: feedback['comment'], email:feedback['email'], agent:request.user_agent })
@@ -324,5 +337,6 @@ class App < Sinatra::Base
     else
       status 400
     end
+    client.close
   end
 end
