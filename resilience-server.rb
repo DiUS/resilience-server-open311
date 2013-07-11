@@ -32,6 +32,17 @@ class App < Sinatra::Base
   @@service_defs << {"service_code" => "012", "service_name" => "Hazard", "description" => "A situation that may cause property to be damaged or people to be injured.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Hazard/Risk"}
   
   @@PAGE_SIZE = 10
+  
+  def protected!
+    return if authorized?
+    headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
+    halt 401, "Not authorized\n"
+  end
+
+  def authorized?
+    @auth ||=  Rack::Auth::Basic::Request.new(request.env)
+    @auth.provided? and @auth.basic? and @auth.credentials and @auth.credentials == ['admin', 'admin']
+  end
 
   # GET Service List
   # For now, we don't need to support multiple jurisdictions
@@ -75,6 +86,7 @@ class App < Sinatra::Base
   # POST Service Request
   # curl -i -H "Accept: application/json" -X POST -d "service_code=001&lat=37.76524078&long=-122.4212043&address_string=1234+5th+street&email=smit333%40sfgov.edu&device_id=tt222111&account_id=123456&first_name=john&last_name=smith&phone=111111111&description=A+large+sinkhole+is+destroying+the+street&media_url=http%3A%2F%2Ffarm3.static.flickr.com%2F2002%2F2212426634_5ed477a060.jpg" http://localhost:4567/requests.json
   post '/requests.?:format?' do
+    protected!
     content_type 'application/json', :charset => 'utf-8'
     # check for mandatory parameters...
     # jurisdiction_id is not required for this implementation
@@ -216,6 +228,12 @@ class App < Sinatra::Base
       end
       # Handle location
       if (params["lat"] != nil) && (params["long"] != nil) && (params["radius"] != nil) # filter by location
+        if (params["lat"].to_f < -90.0) || (params["lat"].to_f > 90.0)
+          errors << {"code" => 404, "description" => 'latitude out of range'}
+        end
+        if (params["long"].to_f < -180.0) || (params["long"].to_f > 180.0)
+          errors << {"code" => 404, "description" => 'longitude out of range'}
+        end
         latitude = params["lat"].to_f
         longitude = params["long"].to_f
         location = [longitude, latitude]
@@ -295,6 +313,7 @@ class App < Sinatra::Base
   # curl -i -H "Accept: application/json" -X PUT -d "status=open" http://localhost:4567/requests/395e130d-909b-4236-a94c-a91c4e13b323.json
   # curl -i -H "Accept: application/json" -X PUT -d "status=closed" http://localhost:4567/requests/395e130d-909b-4236-a94c-a91c4e13b323.json
   put '/requests/:service_request_id.json' do
+    protected!
     content_type 'application/json', :charset => 'utf-8'
     results = Array.new
     errors = Array.new
@@ -326,6 +345,7 @@ class App < Sinatra::Base
 
   # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -d '{"comment":"What an awesome app! You guys rock!", "email": "somedude@here.com"}' http://localhost:9292/feedback.json
   post '/feedback.?:format?' do
+    protected!
     content_type 'application/json', :charset => 'utf-8'
     feedback = JSON.parse(request.body.read)
     client = MongoClient.new('localhost', 27017)
