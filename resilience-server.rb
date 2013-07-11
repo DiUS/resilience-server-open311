@@ -41,7 +41,7 @@ class App < Sinatra::Base
 
   def authorized?
     @auth ||=  Rack::Auth::Basic::Request.new(request.env)
-    @auth.provided? and @auth.basic? and @auth.credentials and (@auth.credentials == ['ios', 'xwhTJhJQVgaKP5zuxBloVXa8ieOQEtKv'] || @auth.credentials == ['android', 'oeiWMK4jXXbOmDXFj7fVlcKMiExQfeEG'])
+    @auth.provided? and @auth.basic? and @auth.credentials and (@auth.credentials == ['ios', 'xxx'] || @auth.credentials == ['android', 'yyy'])
   end
 
   # GET Service List
