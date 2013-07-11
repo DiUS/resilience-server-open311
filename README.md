@@ -14,4 +14,3 @@ Next steps:
 * Run the Open311 validation tests against the implementation to confirm compliance.
 * Add more stringent parameter checking.
 * Implement the service discovery mechanism. See http://wiki.open311.org/Service_Discovery
-* Add XML support.
