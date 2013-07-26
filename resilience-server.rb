@@ -246,18 +246,18 @@ class App < Sinatra::Base
         client = MongoClient.new('localhost', 27017)
         db = client["resilience"]
         coll = db.collection("service-requests")
-        puts "criteria: #{search_criteria}"
         coll.find(search_criteria).each do |doc|
           results << format_document(doc)
-          # Handle page number by stripping out unwanted results
-          if (params["page"].to_i > 0)
-            page = params["page"].to_i
-            trimmed_results = results[(page-1)*@@PAGE_SIZE,@@PAGE_SIZE]
-            if trimmed_results == nil
-              results = []
-            else
-              results = trimmed_results
-            end
+        end
+
+        # Handle page number by stripping out unwanted results
+        if (params["page"].to_i > 0)
+          page = params["page"].to_i
+          trimmed_results = results[(page-1)*@@PAGE_SIZE, @@PAGE_SIZE]
+          if trimmed_results == nil
+            results = []
+          else
+            results = trimmed_results
           end
         end
         client.close
