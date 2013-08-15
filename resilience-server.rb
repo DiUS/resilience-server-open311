@@ -30,9 +30,9 @@ class App < Sinatra::Base
   @@service_defs << {"service_code" => "010", "service_name" => "Infrastructure Damage", "description" => "Public infrastructure has been damaged.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
   @@service_defs << {"service_code" => "011", "service_name" => "Contents Damage", "description" => "A building's contents have been damaged.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Loss/Damage"}
   @@service_defs << {"service_code" => "012", "service_name" => "Hazard", "description" => "A situation that may cause property to be damaged or people to be injured.", "metadata" => false, "type" => "realtime", "keywords" => "", "group" => "Hazard/Risk"}
-  
+
   @@PAGE_SIZE = 10
-  
+
   def protected!
     return if authorized?
     headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
@@ -41,7 +41,7 @@ class App < Sinatra::Base
 
   def authorized?
     @auth ||=  Rack::Auth::Basic::Request.new(request.env)
-    @auth.provided? and @auth.basic? and @auth.credentials and (@auth.credentials == ['ios', 'xxx'] || @auth.credentials == ['android', 'yyy'])
+    @auth.provided? and @auth.basic? and @auth.credentials and @auth.credentials == [ ENV['BASIC_AUTH_USERNAME'], ENV['BASIC_AUTH_PASSWORD'] ]
   end
 
   # GET Service List
